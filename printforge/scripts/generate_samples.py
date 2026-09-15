@@ -67,7 +67,12 @@ def make_sample_igc(path: str) -> None:
         "HFCIDCOMPETITIONID:PF01",
         "HFSITSITE:Launch Point",
     ]
-    lat0, lon0, alt0 = 46.5, 8.0, 1400.0
+    # Deliberately not on a whole-degree boundary (e.g. NOT 46.0/8.0):
+    # the flight's lat/lon minimum lands exactly at (lat0, lon0) below
+    # (sin/t start at 0), and a boundary value there would place it
+    # exactly on the edge between two SRTM .hgt tiles, which a single
+    # local tile can never fully cover.
+    lat0, lon0, alt0 = 46.52, 8.05, 1400.0
     n = 40
     t = np.linspace(0, 1, n)
     lats = lat0 + 0.01 * t
@@ -79,13 +84,17 @@ def make_sample_igc(path: str) -> None:
         deg = int(abs(v))
         minutes = (abs(v) - deg) * 60
         hemi = "N" if v >= 0 else "S"
-        return f"{deg:02d}{minutes:05.2f}".replace(".", "") + hemi
+        # IGC lat = DDMMmmm: 2-digit degrees + minutes to 3 fractional
+        # digits (thousandths), 5 digits total -- 06.3f gives "MM.mmm"
+        # (6 chars incl. the dot); stripping the dot leaves those 5 digits.
+        return f"{deg:02d}{minutes:06.3f}".replace(".", "") + hemi
 
     def fmt_lon(v: float) -> str:
         deg = int(abs(v))
         minutes = (abs(v) - deg) * 60
         hemi = "E" if v >= 0 else "W"
-        return f"{deg:03d}{minutes:05.2f}".replace(".", "") + hemi
+        # IGC lon = DDDMMmmm: 3-digit degrees + the same 5-digit minutes.
+        return f"{deg:03d}{minutes:06.3f}".replace(".", "") + hemi
 
     for i in range(n):
         h, m, s = 9, i // 2, (i % 2) * 30

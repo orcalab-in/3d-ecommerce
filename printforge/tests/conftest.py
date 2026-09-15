@@ -41,6 +41,22 @@ def dem_dir(tmp_path):
 
 
 @pytest.fixture
+def flight_dem_dir(tmp_path):
+    """A tiny synthetic .hgt tile covering samples/sample.igc's flight
+    (see scripts/generate_samples.py: lat0=46.52, lon0=8.05)."""
+    n = 25
+    lat_sw, lon_sw = 46, 8
+    lats = np.linspace(lat_sw + 1.0, lat_sw, n)
+    lons = np.linspace(lon_sw, lon_sw + 1.0, n)
+    lat_grid, lon_grid = np.meshgrid(lats, lons, indexing="ij")
+    z = 1300 + 150 * np.sin((lat_grid - 46.52) * 100) * np.cos((lon_grid - 8.06) * 100)
+    path = tmp_path / "flight_dem"
+    path.mkdir()
+    z.astype(">i2").tofile(path / f"N{lat_sw}E{lon_sw:03d}.hgt")
+    return str(path)
+
+
+@pytest.fixture
 def mock_opentopo(monkeypatch):
     """Patch dem.http_get to return a small canned AAIGrid tile instead
     of making a real network call; also tracks call count so tests can
