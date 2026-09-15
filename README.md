@@ -12,6 +12,7 @@ a Vite/React web admin console.
 | `mobile/` | Expo SDK 54 customer app — Shop, Cart, Orders, Profile, Support, model detail, STL upload |
 | `admin/` | Vite + React + TS web console — products/inventory, categories, colors, orders, print queue, pricing, delivery |
 | `db/schema.sql` | Postgres schema for Supabase |
+| `printforge/` | Standalone Python package + CLI — turns customer input (photo, GPX/Strava route, IGC flight log, name) into print-ready STL/3MF files; not yet wired into `backend/` (see `printforge/README.md`) |
 
 ## Tenancy model
 
