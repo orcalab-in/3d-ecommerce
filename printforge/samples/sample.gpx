@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="printforge-sample" xmlns="http://www.topografix.com/GPX/1/1">
+  <trk>
+    <name>Sample Morning Run</name>
+    <trkseg>
+      <trkpt lat="37.774900" lon="-122.413400"><ele>35.0</ele><time>2024-05-01T07:00:00Z</time></trkpt>
+      <trkpt lat="37.775979" lon="-122.413622"><ele>41.2</ele><time>2024-05-01T07:01:00Z</time></trkpt>
+      <trkpt lat="37.776978" lon="-122.414273"><ele>43.0</ele><time>2024-05-01T07:02:00Z</time></trkpt>
+      <trkpt lat="37.777823" lon="-122.415305"><ele>41.1</ele><time>2024-05-01T07:03:00Z</time></trkpt>
+      <trkpt lat="37.778452" lon="-122.416640"><ele>37.3</ele><time>2024-05-01T07:04:00Z</time></trkpt>
+      <trkpt lat="37.778816" lon="-122.418179"><ele>33.1</ele><time>2024-05-01T07:05:00Z</time></trkpt>
+      <trkpt lat="37.778891" lon="-122.419809"><ele>29.0</ele><time>2024-05-01T07:06:00Z</time></trkpt>
+      <trkpt lat="37.778669" lon="-122.421409"><ele>24.8</ele><time>2024-05-01T07:07:00Z</time></trkpt>
+      <trkpt lat="37.778168" lon="-122.422860"><ele>20.7</ele><time>2024-05-01T07:08:00Z</time></trkpt>
+      <trkpt lat="37.777424" lon="-122.424054"><ele>17.6</ele><time>2024-05-01T07:09:00Z</time></trkpt>
+      <trkpt lat="37.776494" lon="-122.424903"><ele>17.4</ele><time>2024-05-01T07:10:00Z</time></trkpt>
+      <trkpt lat="37.775445" lon="-122.425344"><ele>21.4</ele><time>2024-05-01T07:11:00Z</time></trkpt>
+      <trkpt lat="37.774355" lon="-122.425344"><ele>29.5</ele><time>2024-05-01T07:12:00Z</time></trkpt>
+      <trkpt lat="37.773306" lon="-122.424903"><ele>39.3</ele><time>2024-05-01T07:13:00Z</time></trkpt>
+      <trkpt lat="37.772376" lon="-122.424054"><ele>47.0</ele><time>2024-05-01T07:14:00Z</time></trkpt>
+      <trkpt lat="37.771632" lon="-122.422860"><ele>48.9</ele><time>2024-05-01T07:15:00Z</time></trkpt>
+      <trkpt lat="37.771131" lon="-122.421409"><ele>43.7</ele><time>2024-05-01T07:16:00Z</time></trkpt>
+      <trkpt lat="37.770909" lon="-122.419809"><ele>33.1</ele><time>2024-05-01T07:17:00Z</time></trkpt>
+      <trkpt lat="37.770984" lon="-122.418179"><ele>21.1</ele><time>2024-05-01T07:18:00Z</time></trkpt>
+      <trkpt lat="37.771348" lon="-122.416640"><ele>12.8</ele><time>2024-05-01T07:19:00Z</time></trkpt>
+      <trkpt lat="37.771977" lon="-122.415305"><ele>11.2</ele><time>2024-05-01T07:20:00Z</time></trkpt>
+      <trkpt lat="37.772822" lon="-122.414273"><ele>16.3</ele><time>2024-05-01T07:21:00Z</time></trkpt>
+      <trkpt lat="37.773821" lon="-122.413622"><ele>25.6</ele><time>2024-05-01T07:22:00Z</time></trkpt>
+      <trkpt lat="37.774900" lon="-122.413400"><ele>35.0</ele><time>2024-05-01T07:23:00Z</time></trkpt>
+    </trkseg>
+  </trk>
+</gpx>
