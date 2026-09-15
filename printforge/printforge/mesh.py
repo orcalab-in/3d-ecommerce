@@ -364,6 +364,55 @@ def flat_panel_with_hole(heights: np.ndarray, res_mm: float, hole_cx_mm: float, 
         [main_top, main_bottom, outer_wall, annulus_top, annulus_bottom, hole_wall]).astype(np.float32)
 
 
+def ribbon(xy: np.ndarray, z: np.ndarray, width_mm: float, top_offset: float,
+           bottom_offset: float) -> np.ndarray:
+    """A closed ribbon/rail solid following a 2D path `xy` with per-point
+    base elevation `z`: width_mm wide, extending from z+bottom_offset to
+    z+top_offset (bottom_offset is typically negative, embedding the
+    ribbon into whatever surface it sits on so the two independently-
+    watertight solids fuse into one print rather than merely touching).
+    Used for the terrain route ridge; general enough for any raised/
+    inset line feature on a surface."""
+    xy = np.asarray(xy, dtype=np.float64)
+    z = np.asarray(z, dtype=np.float64)
+    n = len(xy)
+    if n < 2:
+        raise ValueError("ribbon: path needs at least 2 points")
+
+    tangent = np.zeros_like(xy)
+    tangent[1:-1] = xy[2:] - xy[:-2]
+    tangent[0] = xy[1] - xy[0]
+    tangent[-1] = xy[-1] - xy[-2]
+    tlen = np.linalg.norm(tangent, axis=1, keepdims=True)
+    tlen[tlen < 1e-9] = 1.0
+    tangent = tangent / tlen
+    normal = np.stack([-tangent[:, 1], tangent[:, 0]], axis=1)
+
+    half = width_mm / 2.0
+    left, right = xy + normal * half, xy - normal * half
+    z_top, z_bot = z + top_offset, z + bottom_offset
+
+    left_top = np.column_stack([left, z_top])
+    right_top = np.column_stack([right, z_top])
+    left_bot = np.column_stack([left, z_bot])
+    right_bot = np.column_stack([right, z_bot])
+
+    # Treat the ribbon as sweep_tube() with a 4-point rectangular cross
+    # section (rather than a circular one) instead of hand-building each
+    # of the 4 side faces separately: one CCW-around-the-cross-section
+    # ring per path sample, closed with grid_surface_tris(close_u=True).
+    ring = np.stack([left_top, right_top, right_bot, left_bot], axis=1)  # (n, 4, 3)
+    wall = grid_surface_tris(ring, close_u=True)
+
+    def _quad(p0: np.ndarray, p1: np.ndarray, p2: np.ndarray, p3: np.ndarray) -> np.ndarray:
+        return np.array([[p0, p1, p2], [p0, p2, p3]], dtype=np.float32)
+
+    start_cap = _quad(left_bot[0], right_bot[0], right_top[0], left_top[0])
+    end_cap = _quad(left_top[-1], right_top[-1], right_bot[-1], left_bot[-1])
+
+    return np.concatenate([wall, start_cap, end_cap]).astype(np.float32)
+
+
 def cylinder(center_xy: tuple[float, float], z0: float, z1: float, radius: float,
              segments: int = 24) -> np.ndarray:
     """A closed solid cylinder (used for hanging/keychain-hole walls,

@@ -73,6 +73,25 @@ def test_bridge_loops_annulus_is_watertight_when_closed_with_walls():
     assert result.watertight, result.problems
 
 
+def test_ribbon_closed_loop_is_watertight():
+    t = np.linspace(0, 2 * np.pi, 40)
+    xy = np.stack([50 + 30 * np.cos(t), 50 + 30 * np.sin(t)], axis=1)
+    z = np.full(40, 5.0) + 2 * np.sin(t * 3)
+    tris = mesh.ribbon(xy, z, width_mm=1.5, top_offset=1.2, bottom_offset=-0.2)
+    result = meshcheck.check_mesh(tris)
+    assert result.watertight, result.problems
+    assert result.volume_mm3 > 0
+
+
+def test_ribbon_open_path_is_watertight():
+    t = np.linspace(0, 1, 30)
+    xy = np.stack([10 + 80 * t, 20 + 15 * np.sin(t * 4 * np.pi)], axis=1)
+    z = 3.0 + 1.5 * np.cos(t * 5)
+    tris = mesh.ribbon(xy, z, width_mm=1.5, top_offset=1.2, bottom_offset=-0.2)
+    result = meshcheck.check_mesh(tris)
+    assert result.watertight, result.problems
+
+
 def test_slotted_base_is_watertight():
     tris = mesh.slotted_base(
         width=100.0, depth=40.0,
