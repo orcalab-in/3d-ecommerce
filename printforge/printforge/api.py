@@ -16,7 +16,7 @@ from datetime import datetime, timezone
 from types import ModuleType
 
 from . import estimate, meshcheck
-from .products import flight, lithophane, photo_lamp, terrain
+from .products import flight, led_base, lithophane, photo_lamp, terrain
 from .stl_io import write_binary_stl
 
 PRODUCTS: dict[str, ModuleType] = {
@@ -24,6 +24,7 @@ PRODUCTS: dict[str, ModuleType] = {
     "lithophane": lithophane,
     "terrain": terrain,
     "flight": flight,
+    "led_base": led_base,
 }
 
 

@@ -266,7 +266,8 @@ def ruled_grid_solid(top: np.ndarray, bottom: np.ndarray, close_u: bool = False,
 
 
 def slotted_base(width: float, depth: float, slots: list[dict], floor: float = 5.0,
-                  height: float = 15.0, res_mm: float = 1.0, step_eps: float = 0.001) -> np.ndarray:
+                  height: float = 15.0, res_mm: float = 1.0, step_eps: float = 0.001,
+                  cable_channel: dict | None = None) -> np.ndarray:
     """Generalizes the prototype's box-union stand_stl into N parallel
     slots -- WITHOUT box unions. A union of touching boxes leaves behind
     internal seams that are only *partially* coincident (a wall segment's
@@ -280,7 +281,10 @@ def slotted_base(width: float, depth: float, slots: list[dict], floor: float = 5
     of grid rows at the two levels, so the wall reads as vertical rather
     than a ramp. slots: [{"y_start": float, "thickness": float,
     "clearance": float=0.4}, ...] -- a real part (panel, LED board) drops
-    into each gap."""
+    into each gap. cable_channel: optional {"x_center_mm", "width_mm"} --
+    a full-height, full-depth notch through the back (y=depth) edge for
+    a power lead to exit, cut from the outer footprint mask the same way
+    corner_mask carves a rounded panel corner."""
     nx = max(2, int(round(width / res_mm)) + 1)
     xs = np.linspace(0.0, width, nx)
 
@@ -300,7 +304,18 @@ def slotted_base(width: float, depth: float, slots: list[dict], floor: float = 5
     x, y = np.meshgrid(xs, ys)
     top = np.stack([x, y, np.broadcast_to(top_h[:, None], (ny, nx))], axis=-1).astype(np.float64)
     bottom = np.stack([x, y, np.zeros((ny, nx))], axis=-1).astype(np.float64)
-    return ruled_grid_solid(top, bottom, close_u=False).astype(np.float32)
+
+    footprint_mask = None
+    if cable_channel is not None:
+        cx = cable_channel.get("x_center_mm", width / 2.0)
+        cw = cable_channel.get("width_mm", 5.0)
+        cell_x = (xs[:-1] + xs[1:]) / 2.0
+        cell_y = (ys[:-1] + ys[1:]) / 2.0
+        cell_x_grid, cell_y_grid = np.meshgrid(cell_x, cell_y)
+        notch = (np.abs(cell_x_grid - cx) <= cw / 2.0) & (cell_y_grid >= depth - 1.5 * res_mm)
+        footprint_mask = ~notch
+
+    return ruled_grid_solid(top, bottom, close_u=False, mask=footprint_mask).astype(np.float32)
 
 
 def flat_panel_with_hole(heights: np.ndarray, res_mm: float, hole_cx_mm: float, hole_cy_mm: float,
