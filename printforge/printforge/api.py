@@ -16,11 +16,12 @@ from datetime import datetime, timezone
 from types import ModuleType
 
 from . import estimate, meshcheck
-from .products import photo_lamp
+from .products import lithophane, photo_lamp
 from .stl_io import write_binary_stl
 
 PRODUCTS: dict[str, ModuleType] = {
     "photo_lamp": photo_lamp,
+    "lithophane": lithophane,
 }
 
 

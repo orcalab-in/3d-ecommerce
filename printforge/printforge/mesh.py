@@ -303,6 +303,67 @@ def slotted_base(width: float, depth: float, slots: list[dict], floor: float = 5
     return ruled_grid_solid(top, bottom, close_u=False).astype(np.float32)
 
 
+def flat_panel_with_hole(heights: np.ndarray, res_mm: float, hole_cx_mm: float, hole_cy_mm: float,
+                          hole_r_mm: float, segments: int = 24, margin_cells: int = 1) -> np.ndarray:
+    """A flat photo-heightmap panel (top=heights, bottom=z=0) with a
+    circular through-hole. The grid cells under the hole's bounding box
+    are excluded from the main surface (after flattening that patch so
+    the cut is coplanar) and re-closed with a true circular wall via
+    bridge_loops -- no CSG. Used by the "flat panel + hanging hole" and
+    keychain forms."""
+    heights = np.asarray(heights, dtype=np.float64)
+    ny, nx = heights.shape
+    col_r, row_r = hole_r_mm / res_mm, hole_r_mm / res_mm
+    ccol, crow = hole_cx_mm / res_mm, hole_cy_mm / res_mm
+    c0 = max(0, int(np.floor(ccol - col_r)) - margin_cells)
+    c1 = min(nx - 1, int(np.ceil(ccol + col_r)) + margin_cells)
+    r0 = max(0, int(np.floor(crow - row_r)) - margin_cells)
+    r1 = min(ny - 1, int(np.ceil(crow + row_r)) + margin_cells)
+    if c1 <= c0 or r1 <= r0:
+        raise ValueError("flat_panel_with_hole: hole falls outside the panel")
+
+    flat_z = float(heights[r0:r1 + 1, c0:c1 + 1].max())
+    heights = heights.copy()
+    heights[r0:r1 + 1, c0:c1 + 1] = flat_z
+
+    xs = np.arange(nx, dtype=np.float64) * res_mm
+    ys = np.arange(ny, dtype=np.float64) * res_mm
+    x, y = np.meshgrid(xs, ys)
+    top = np.stack([x, y, heights], axis=-1)
+    bottom = np.stack([x, y, np.zeros_like(heights)], axis=-1)
+
+    hole_mask = np.ones((ny - 1, nx - 1), dtype=bool)
+    hole_mask[r0:r1, c0:c1] = False
+
+    main_top = grid_surface_tris(top, mask=hole_mask)
+    main_bottom = grid_surface_tris(bottom, mask=hole_mask)[:, ::-1, :]
+
+    outer_idx, hole_idx = boundary_loops(hole_mask)[:2]
+    outer_top, outer_bottom = top[outer_idx[:, 0], outer_idx[:, 1]], bottom[outer_idx[:, 0], outer_idx[:, 1]]
+    outer_wall = wall_strip(outer_top, outer_bottom, close=True)
+
+    hole_rect_top = top[hole_idx[:, 0], hole_idx[:, 1]]
+    hole_rect_bottom = bottom[hole_idx[:, 0], hole_idx[:, 1]]
+
+    theta = np.linspace(0.0, 2 * np.pi, segments, endpoint=False)
+    circle_top = np.stack(
+        [hole_cx_mm + hole_r_mm * np.cos(theta), hole_cy_mm + hole_r_mm * np.sin(theta),
+         np.full(segments, flat_z)], axis=-1)
+    circle_bottom = np.stack(
+        [hole_cx_mm + hole_r_mm * np.cos(theta), hole_cy_mm + hole_r_mm * np.sin(theta),
+         np.zeros(segments)], axis=-1)
+
+    # hole_rect_* comes out of boundary_loops CW (it's a hole relative to
+    # the outer panel); reverse it to CCW so it matches bridge_loops'
+    # both-loops-CCW convention for a +z-facing result.
+    annulus_top = bridge_loops(hole_rect_top[::-1], circle_top)
+    annulus_bottom = bridge_loops(hole_rect_bottom[::-1], circle_bottom)[:, ::-1, :]
+    hole_wall = wall_strip(circle_bottom, circle_top, close=True)
+
+    return np.concatenate(
+        [main_top, main_bottom, outer_wall, annulus_top, annulus_bottom, hole_wall]).astype(np.float32)
+
+
 def cylinder(center_xy: tuple[float, float], z0: float, z1: float, radius: float,
              segments: int = 24) -> np.ndarray:
     """A closed solid cylinder (used for hanging/keychain-hole walls,
@@ -319,6 +380,30 @@ def cylinder(center_xy: tuple[float, float], z0: float, z1: float, radius: float
     cap_top = bridge_loops(ring_top, np.array([[cx, cy, z1]], dtype=np.float32))
     cap_bottom = bridge_loops(ring_bottom, np.array([[cx, cy, z0]], dtype=np.float32))[:, ::-1, :]
     return np.concatenate([wall, cap_top, cap_bottom]).astype(np.float32)
+
+
+def radial_panel_grids(heights: np.ndarray, res_mm: float, radius_mm: float,
+                        arc_deg: float) -> tuple[np.ndarray, np.ndarray]:
+    """Vertex grids for a lithophane wrapped around a cylinder: image X
+    maps to arc angle, image Y to print height, and per-pixel thickness
+    modulates RADIUS (purely in-plane at each printed layer -- never an
+    overhang, so it prints bottom-up with no supports). arc_deg=360 gives
+    a full wrap (pass close_u=True to ruled_grid_solid); anything less is
+    an open cylinder-segment panel (close_u=False)."""
+    heights = np.asarray(heights, dtype=np.float64)
+    ny, nx = heights.shape
+    if arc_deg >= 359.999:
+        theta = np.linspace(0.0, 2 * np.pi, nx, endpoint=False)
+    else:
+        half = np.radians(arc_deg) / 2.0
+        theta = np.linspace(-half, half, nx)
+    z = np.arange(ny, dtype=np.float64) * res_mm
+    th, zz = np.meshgrid(theta, z)
+    r_out = radius_mm + heights
+    top = np.stack([r_out * np.cos(th), r_out * np.sin(th), zz], axis=-1)
+    bottom = np.stack([np.full_like(zz, radius_mm) * np.cos(th),
+                        np.full_like(zz, radius_mm) * np.sin(th), zz], axis=-1)
+    return top, bottom
 
 
 def sweep_tube(centerline: np.ndarray, radius: float, segments: int = 10) -> np.ndarray:
