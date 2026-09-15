@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+*.egg
+.eggs/
+
+# Node
+node_modules/
+dist/
+.expo/
+*.tsbuildinfo
+
+# Env / secrets
+.env
+.env.local
+*.pem
+
+# OS
+.DS_Store
+
+# printforge working data
+printforge/out/*
+!printforge/out/.gitkeep
+printforge/.cache/
+printforge/dem/*
+!printforge/dem/.gitkeep

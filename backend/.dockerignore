@@ -1,0 +1,31 @@
+# Node / Expo frontend — not needed in the image
+node_modules/
+.expo/
+ios/
+android/
+app/
+components/
+assets/
+hooks/
+context/
+services/
+types/
+utils/
+constants/
+*.json
+!package.json
+
+# Python venv inside api/
+api/.venv/
+api/__pycache__/
+api/**/__pycache__/
+api/**/*.pyc
+api/.env
+api/.env.*
+!api/.env.example
+
+# Git / editor
+.git/
+.gitignore
+*.md
+.DS_Store
