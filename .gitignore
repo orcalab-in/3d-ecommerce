@@ -28,3 +28,6 @@ printforge/out/*
 printforge/.cache/
 printforge/dem/*
 !printforge/dem/.gitkeep
+
+# backend: generated printforge job files (STL/3MF/preview per job_id)
+backend/jobs/
