@@ -8,3 +8,10 @@ on conflict (id) do update set file_size_limit = excluded.file_size_limit;
 
 -- No storage.objects policies are added for anon/authenticated roles, so
 -- only the service-role key (used server-side only) can read or write.
+
+-- Public bucket for catalog product photos (weekend 2) -- these need to
+-- render on the public /shop storefront without a signed-URL round trip,
+-- unlike customer originals above.
+insert into storage.buckets (id, name, public)
+values ('catalog-images', 'catalog-images', true)
+on conflict (id) do nothing;

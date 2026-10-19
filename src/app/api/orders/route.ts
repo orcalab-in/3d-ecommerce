@@ -10,8 +10,11 @@ import {
   STORAGE_BUCKET,
 } from "@/lib/config";
 import { AdjustState, CropState } from "@/lib/imaging";
+import { computeLampPrice } from "@/lib/pricing";
 import { generateLithophaneSTL } from "@/lib/server-lithophane";
+import { loadSettings } from "@/lib/settings";
 import { supabaseAdmin } from "@/lib/supabase/server";
+import { getSessionUser } from "@/lib/supabase/server-auth";
 import { validateOrderDetails } from "@/lib/validate-order";
 import { validatePhotoFile } from "@/lib/validate-photo";
 
@@ -44,7 +47,7 @@ export async function POST(request: Request) {
   }
 
   const type = form.get("type");
-  if (type !== "photo_lamp" && type !== "stl_upload") {
+  if (type !== "photo_lamp" && type !== "stl_upload" && type !== "catalog_product") {
     return fail("Invalid order type");
   }
 
@@ -63,13 +66,45 @@ export async function POST(request: Request) {
   const qtyRaw = Number(form.get("qty") ?? 1);
   const qty = Number.isFinite(qtyRaw) ? Math.min(20, Math.max(1, Math.round(qtyRaw))) : 1;
 
-  const file = form.get("file");
-  if (!(file instanceof File)) return fail("No file uploaded");
-
   const admin = supabaseAdmin();
   const tempId = randomUUID();
+  const sessionUser = await getSessionUser();
+  const settings = await loadSettings();
 
   try {
+    if (type === "catalog_product") {
+      const productId = String(form.get("productId") ?? "");
+      const { data: product } = await admin
+        .from("products")
+        .select("id, name, price, active")
+        .eq("id", productId)
+        .single();
+      if (!product || !product.active) return fail("That product is no longer available");
+
+      const orderNo = await createOrderWithItem(
+        admin,
+        details,
+        qty,
+        product.price * qty,
+        sessionUser,
+        {
+          type: "catalog_product",
+          size: null,
+          options: {},
+          params_json: { productName: product.name, unitPrice: product.price },
+          source_file_path: null,
+          generated_file_path: null,
+          preview_image_path: null,
+          product_id: product.id,
+        }
+      );
+      if (!orderNo) return fail("Could not save order", 500);
+      return NextResponse.json({ orderNo });
+    }
+
+    const file = form.get("file");
+    if (!(file instanceof File)) return fail("No file uploaded");
+
     if (type === "photo_lamp") {
       const fileErrors = validatePhotoFile(file);
       if (fileErrors.length > 0) return fail(fileErrors.join(" "));
@@ -123,7 +158,7 @@ export async function POST(request: Request) {
       const uploadError = uploads.find((u) => u.error)?.error;
       if (uploadError) return fail(`Storage upload failed: ${uploadError.message}`, 500);
 
-      const orderNo = await createOrderWithItem(admin, details, qty, {
+      const orderNo = await createOrderWithItem(admin, details, qty, computeLampPrice(settings.pricing, sizeId, baseOption, qty), sessionUser, {
         type: "photo_lamp",
         size: sizeId,
         options: { base: baseOption },
@@ -151,7 +186,7 @@ export async function POST(request: Request) {
     });
     if (uploadError) return fail(`Storage upload failed: ${uploadError.message}`, 500);
 
-    const orderNo = await createOrderWithItem(admin, details, qty, {
+    const orderNo = await createOrderWithItem(admin, details, qty, null, sessionUser, {
       type: "stl_upload",
       size: sizeNotes || null,
       options: { colour },
@@ -173,25 +208,21 @@ async function createOrderWithItem(
   admin: ReturnType<typeof supabaseAdmin>,
   details: OrderDetails,
   qty: number,
+  quoteAmount: number | null,
+  sessionUser: Awaited<ReturnType<typeof getSessionUser>>,
   item: {
-    type: "photo_lamp" | "stl_upload";
+    type: "photo_lamp" | "stl_upload" | "catalog_product";
     size: string | null;
     options: Record<string, unknown>;
     params_json: Record<string, unknown>;
-    source_file_path: string;
+    source_file_path: string | null;
     generated_file_path: string | null;
     preview_image_path: string | null;
+    product_id?: string;
   }
 ): Promise<string | null> {
-  const { data: customer, error: customerError } = await admin
-    .from("customers")
-    .insert({ name: details.name.trim(), whatsapp: details.whatsapp.trim() })
-    .select("id")
-    .single();
-  if (customerError || !customer) {
-    console.error("customer insert failed", customerError);
-    return null;
-  }
+  const customer = await findOrCreateCustomer(admin, details, sessionUser);
+  if (!customer) return null;
 
   const { data: order, error: orderError } = await admin
     .from("orders")
@@ -201,6 +232,7 @@ async function createOrderWithItem(
       pincode: details.pincode.trim(),
       notes: details.notes.trim() || null,
       needed_by: details.neededBy || null,
+      quote_amount: quoteAmount,
     })
     .select("id, order_no")
     .single();
@@ -219,6 +251,7 @@ async function createOrderWithItem(
     source_file_path: item.source_file_path,
     generated_file_path: item.generated_file_path,
     preview_image_path: item.preview_image_path,
+    product_id: item.product_id ?? null,
   });
   if (itemError) {
     console.error("order_item insert failed", itemError);
@@ -232,4 +265,59 @@ async function createOrderWithItem(
   });
 
   return order.order_no as string;
+}
+
+/**
+ * Guest checkout (no session): always insert a fresh customer row, as before.
+ * Logged-in: reuse the one customer row linked to this account (creating it
+ * on first order) so "My Orders" can list everything by customer_id --
+ * without this, every order would be a disconnected row.
+ */
+async function findOrCreateCustomer(
+  admin: ReturnType<typeof supabaseAdmin>,
+  details: OrderDetails,
+  sessionUser: Awaited<ReturnType<typeof getSessionUser>>
+): Promise<{ id: string } | null> {
+  if (!sessionUser) {
+    const { data, error } = await admin
+      .from("customers")
+      .insert({ name: details.name.trim(), whatsapp: details.whatsapp.trim() })
+      .select("id")
+      .single();
+    if (error || !data) {
+      console.error("customer insert failed", error);
+      return null;
+    }
+    return data;
+  }
+
+  const { data: existing } = await admin
+    .from("customers")
+    .select("id")
+    .eq("user_id", sessionUser.id)
+    .maybeSingle();
+
+  if (existing) {
+    await admin
+      .from("customers")
+      .update({ name: details.name.trim(), whatsapp: details.whatsapp.trim(), email: sessionUser.email })
+      .eq("id", existing.id);
+    return existing;
+  }
+
+  const { data, error } = await admin
+    .from("customers")
+    .insert({
+      name: details.name.trim(),
+      whatsapp: details.whatsapp.trim(),
+      user_id: sessionUser.id,
+      email: sessionUser.email,
+    })
+    .select("id")
+    .single();
+  if (error || !data) {
+    console.error("customer insert failed", error);
+    return null;
+  }
+  return data;
 }

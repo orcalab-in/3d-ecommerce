@@ -9,9 +9,18 @@ interface Props {
   submitLabel: string;
   onSubmit: (details: OrderDetailsInput) => void;
   error: string | null;
+  /** Defaults to the photo-rights wording; override for flows with no photo involved (e.g. the catalog). */
+  consentLabel?: string;
 }
 
-export default function OrderDetailsForm({ extraFields, submitting, submitLabel, onSubmit, error }: Props) {
+export default function OrderDetailsForm({
+  extraFields,
+  submitting,
+  submitLabel,
+  onSubmit,
+  error,
+  consentLabel = "I own or have the right to use this photo.",
+}: Props) {
   const [details, setDetails] = useState<OrderDetailsInput>({
     name: "",
     whatsapp: "",
@@ -114,7 +123,7 @@ export default function OrderDetailsForm({ extraFields, submitting, submitLabel,
           onChange={(e) => set("consent", e.target.checked)}
           required
         />
-        <span>I own or have the right to use this photo.</span>
+        <span>{consentLabel}</span>
       </label>
 
       {(localErrors.length > 0 || error) && (

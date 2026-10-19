@@ -8,7 +8,7 @@ const SIGNED_URL_TTL_SECONDS = 60 * 10;
 
 interface OrderItemRow {
   id: string;
-  type: "photo_lamp" | "stl_upload";
+  type: "photo_lamp" | "stl_upload" | "catalog_product";
   size: string | null;
   options: Record<string, unknown>;
   qty: number;
@@ -88,7 +88,12 @@ export default async function OrderDetailPage({
         {orderItems.map((item) => (
           <section key={item.id} className="rounded-xl bg-white p-4 shadow-sm">
             <h2 className="mb-3 font-semibold">
-              {item.type === "photo_lamp" ? "Photo lamp" : "STL/3MF upload"} {item.size ? `— ${item.size}` : ""}
+              {item.type === "photo_lamp"
+                ? "Photo lamp"
+                : item.type === "stl_upload"
+                  ? "STL/3MF upload"
+                  : "Ready-made item"}{" "}
+              {item.size ? `— ${item.size}` : ""}
             </h2>
             <div className="mb-3 flex flex-wrap gap-4">
               {item.preview_image_path && signedUrls.get(item.preview_image_path) && (
@@ -108,7 +113,7 @@ export default async function OrderDetailPage({
               <dd>{item.qty}</dd>
               <dt className="text-foreground/50">Options</dt>
               <dd>{JSON.stringify(item.options)}</dd>
-              {item.type === "photo_lamp" && (
+              {(item.type === "photo_lamp" || item.type === "catalog_product") && (
                 <>
                   <dt className="text-foreground/50">Params</dt>
                   <dd className="truncate">{JSON.stringify(item.params_json)}</dd>

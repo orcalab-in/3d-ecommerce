@@ -58,7 +58,20 @@ export const BASE_OPTIONS = {
 } as const;
 export type BaseOptionId = keyof typeof BASE_OPTIONS;
 
-/** Order intake pauses for new Diwali-rush orders after this date (inclusive). Set null to disable. */
+/**
+ * Fallback defaults for src/lib/settings.ts -- the live, admin-editable
+ * values (via /admin/settings) live in the `app_settings` DB table. These
+ * constants only matter if that row is ever missing (e.g. migration not
+ * yet run), and as the migration's seed data. Edit pricing/WhatsApp
+ * number/Diwali cutoff in /admin/settings, not here.
+ */
+export const PRICING: Record<SizeOptionId, Record<BaseOptionId, number>> = {
+  "100x150": { none: 499, led: 799 },
+  "150x200": { none: 799, led: 1199 },
+};
+
+export const BUSINESS_WHATSAPP_NUMBER = "918939244089";
+
 export const ORDER_CUTOFF = {
   diwaliCutoffDate: "2026-10-30",
   message:
@@ -81,4 +94,8 @@ export const ORDER_STATUSES = [
 ] as const;
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
 
+/** A logged-in customer can self-cancel their own order only while it's in one of these statuses. */
+export const SELF_CANCEL_ALLOWED_STATUSES: OrderStatus[] = ["Received", "Quote sent"];
+
 export const STORAGE_BUCKET = "lithophane-files";
+export const CATALOG_IMAGES_BUCKET = "catalog-images";
