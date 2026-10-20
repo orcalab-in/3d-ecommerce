@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useCart } from "@/contexts/CartContext";
+import { track } from "@/lib/analytics/track";
 import { STL_UPLOAD } from "@/lib/config";
 
 export default function CreateStlPage() {
@@ -35,6 +36,7 @@ export default function CreateStlPage() {
       return;
     }
     addItem({ id: crypto.randomUUID(), type: "stl_upload", file, sizeNotes, colour, qty });
+    track("stl_upload_submitted");
     setAdded(true);
   }
 

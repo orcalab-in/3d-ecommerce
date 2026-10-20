@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import OrderDetailsForm from "@/components/OrderDetailsForm";
 import { useCart } from "@/contexts/CartContext";
+import { track } from "@/lib/analytics/track";
 import { cartHasUnpricedItem, itemLabel, itemUnitPrice } from "@/lib/cart";
 import type { OrderDetailsInput } from "@/lib/validate-order";
 
@@ -16,6 +17,12 @@ export default function CheckoutClient({ initialProfile }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [orderNo, setOrderNo] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (items.length > 0) track("order_form_started");
+    // Only on mount -- this marks the start of a checkout attempt, not every cart change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const submit = useCallback(
     async (details: OrderDetailsInput) => {
@@ -60,6 +67,13 @@ export default function CheckoutClient({ initialProfile }: Props) {
         const res = await fetch("/api/orders", { method: "POST", body: form });
         const json = await res.json();
         if (!res.ok) throw new Error(json.error ?? "Something went wrong");
+        items.forEach((item) => {
+          track("order_submitted", {
+            size: item.type === "photo_lamp" ? item.sizeId : null,
+            qty: item.qty,
+            type: item.type,
+          });
+        });
         setOrderNo(json.orderNo);
         clearCart();
       } catch (err) {

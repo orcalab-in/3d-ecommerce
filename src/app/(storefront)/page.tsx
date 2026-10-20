@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { SELF_CANCEL_ALLOWED_STATUSES, SIZE_OPTIONS } from "@/lib/config";
 import { loadSettings } from "@/lib/settings";
+import StlUploadLink from "./StlUploadLink";
 
 // Pricing/WhatsApp number/Diwali cutoff are admin-editable (see /admin/settings)
 // -- force dynamic rendering so changes show up immediately, not just after a rebuild.
@@ -65,12 +66,7 @@ export default async function LandingPage() {
           >
             Upload your photo
           </Link>
-          <Link
-            href="/create-stl"
-            className="text-sm font-medium text-ember underline underline-offset-2 hover:text-amber-dark"
-          >
-            Have your own STL/3MF?
-          </Link>
+          <StlUploadLink />
         </div>
         {settings.diwaliCutoffDate && (
           <p className="mx-auto mt-6 max-w-md rounded-lg bg-amber/10 px-4 py-2 text-sm text-amber-dark">

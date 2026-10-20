@@ -4,11 +4,12 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import LithophanePreview, { PreviewMode } from "@/components/LithophanePreview";
 import { useCart } from "@/contexts/CartContext";
+import { track } from "@/lib/analytics/track";
 import { BASE_OPTIONS, BaseOptionId, SIZE_OPTIONS, SizeOptionId } from "@/lib/config";
 import { buildPreviewPanel, PreviewPanel } from "@/lib/client-lithophane";
 import { AdjustState, averageLuminance, CropState, DEFAULT_ADJUST, DEFAULT_CROP } from "@/lib/imaging";
 import { computeLampPrice } from "@/lib/pricing";
-import { checkPhotoQuality, validatePhotoFile } from "@/lib/validate-photo";
+import { checkPhotoQuality, PhotoQualityWarning, validatePhotoFile } from "@/lib/validate-photo";
 
 type Step = "upload" | "adjust" | "addedToCart";
 
@@ -33,7 +34,7 @@ export default function CreateClient({ pricing }: Props) {
   const [imgEl, setImgEl] = useState<HTMLImageElement | null>(null);
   const [heicUndecodable, setHeicUndecodable] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const [warnings, setWarnings] = useState<string[]>([]);
+  const [warnings, setWarnings] = useState<PhotoQualityWarning[]>([]);
 
   const [sizeId, setSizeId] = useState<SizeOptionId>("100x150");
   const [crop, setCrop] = useState<CropState>(DEFAULT_CROP);
@@ -70,9 +71,12 @@ export default function CreateClient({ pricing }: Props) {
     setHeicUndecodable(false);
     if (!selected) return;
 
+    track("upload_started");
+
     const errors = validatePhotoFile(selected);
     if (errors.length > 0) {
       setUploadError(errors.join(" "));
+      track("upload_failed", { reason: errors.join(" ") });
       return;
     }
 
@@ -88,11 +92,16 @@ export default function CreateClient({ pricing }: Props) {
       if (ctx) {
         ctx.drawImage(img, 0, 0, 50, 50);
         const avg = averageLuminance(ctx.getImageData(0, 0, 50, 50).data);
-        setWarnings(checkPhotoQuality(img, avg));
+        const quality = checkPhotoQuality(img, avg);
+        setWarnings(quality);
+        if (quality.some((w) => w.type === "low_res")) track("low_res_warning_shown");
+        if (quality.some((w) => w.type === "dark")) track("dark_photo_warning_shown");
       }
+      track("upload_succeeded");
     } catch {
       setImgEl(null);
       setHeicUndecodable(true);
+      track("upload_failed", { reason: "decode-failed" });
     }
     setStep("adjust");
   }
@@ -113,6 +122,7 @@ export default function CreateClient({ pricing }: Props) {
     }));
   }
   function onPointerUp() {
+    if (dragState.current) track("preview_adjusted", { control: "crop" });
     dragState.current = null;
   }
 
@@ -165,8 +175,8 @@ export default function CreateClient({ pricing }: Props) {
           <h1 className="text-xl font-bold text-ember">Preview your lamp</h1>
 
           {warnings.map((w) => (
-            <p key={w} className="rounded-lg bg-amber/10 px-3 py-2 text-xs text-amber-dark">
-              ⚠️ {w}
+            <p key={w.type} className="rounded-lg bg-amber/10 px-3 py-2 text-xs text-amber-dark">
+              ⚠️ {w.message}
             </p>
           ))}
 
@@ -180,7 +190,7 @@ export default function CreateClient({ pricing }: Props) {
           {!heicUndecodable && (
             <>
               <div
-                className="relative aspect-[3/4] w-full touch-none overflow-hidden rounded-2xl shadow-lg"
+                className="relative aspect-3/4 w-full touch-none overflow-hidden rounded-2xl shadow-lg"
                 onPointerDown={onPointerDown}
                 onPointerMove={(e) => onPointerMove(e, e.currentTarget.clientWidth, e.currentTarget.clientHeight)}
                 onPointerUp={onPointerUp}
@@ -229,6 +239,7 @@ export default function CreateClient({ pricing }: Props) {
                   min={1}
                   max={3}
                   step={0.01}
+                  controlName="zoom"
                   onChange={(v) => setCrop((c) => ({ ...c, zoom: v }))}
                 />
                 <SliderRow
@@ -237,6 +248,7 @@ export default function CreateClient({ pricing }: Props) {
                   min={0.5}
                   max={1.5}
                   step={0.01}
+                  controlName="brightness"
                   onChange={(v) => setAdjust((a) => ({ ...a, brightness: v }))}
                 />
                 <SliderRow
@@ -245,6 +257,7 @@ export default function CreateClient({ pricing }: Props) {
                   min={0.5}
                   max={1.5}
                   step={0.01}
+                  controlName="contrast"
                   onChange={(v) => setAdjust((a) => ({ ...a, contrast: v }))}
                 />
                 <label className="flex items-center justify-between text-sm">
@@ -252,7 +265,10 @@ export default function CreateClient({ pricing }: Props) {
                   <input
                     type="checkbox"
                     checked={adjust.invert}
-                    onChange={(e) => setAdjust((a) => ({ ...a, invert: e.target.checked }))}
+                    onChange={(e) => {
+                      setAdjust((a) => ({ ...a, invert: e.target.checked }));
+                      track("preview_adjusted", { control: "invert" });
+                    }}
                   />
                 </label>
               </div>
@@ -265,7 +281,10 @@ export default function CreateClient({ pricing }: Props) {
               {(Object.keys(SIZE_OPTIONS) as SizeOptionId[]).map((id) => (
                 <button
                   key={id}
-                  onClick={() => setSizeId(id)}
+                  onClick={() => {
+                    setSizeId(id);
+                    track("size_selected", { size: id });
+                  }}
                   className={`flex-1 rounded-lg border px-3 py-2 text-sm ${
                     sizeId === id ? "border-amber bg-amber/10 font-semibold text-amber-dark" : "border-amber/20"
                   }`}
@@ -283,7 +302,10 @@ export default function CreateClient({ pricing }: Props) {
               {(Object.keys(BASE_OPTIONS) as BaseOptionId[]).map((id) => (
                 <button
                   key={id}
-                  onClick={() => setBaseOption(id)}
+                  onClick={() => {
+                    setBaseOption(id);
+                    track("led_option_selected", { option: id });
+                  }}
                   className={`flex-1 rounded-lg border px-3 py-2 text-sm ${
                     baseOption === id ? "border-amber bg-amber/10 font-semibold text-amber-dark" : "border-amber/20"
                   }`}
@@ -354,6 +376,7 @@ function SliderRow({
   min,
   max,
   step,
+  controlName,
   onChange,
 }: {
   label: string;
@@ -361,6 +384,7 @@ function SliderRow({
   min: number;
   max: number;
   step: number;
+  controlName: string;
   onChange: (v: number) => void;
 }) {
   return (
@@ -373,6 +397,9 @@ function SliderRow({
         step={step}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
+        // Fire once per drag gesture (not on every tick of onChange) so we
+        // don't flood analytics while the user is still dragging.
+        onPointerUp={() => track("preview_adjusted", { control: controlName })}
       />
     </label>
   );

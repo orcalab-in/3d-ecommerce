@@ -12,17 +12,26 @@ export function validatePhotoFile(file: File): string[] {
   return errors;
 }
 
+export interface PhotoQualityWarning {
+  type: "low_res" | "dark";
+  message: string;
+}
+
 /** Client-only (needs a decoded <img> + its average luminance). */
-export function checkPhotoQuality(img: HTMLImageElement, avgLuminance255: number): string[] {
-  const warnings: string[] = [];
+export function checkPhotoQuality(img: HTMLImageElement, avgLuminance255: number): PhotoQualityWarning[] {
+  const warnings: PhotoQualityWarning[] = [];
   const shortSide = Math.min(img.naturalWidth, img.naturalHeight);
   if (shortSide < PHOTO_UPLOAD.minShortSidePx) {
-    warnings.push(
-      `This photo is lower resolution than ideal (${shortSide}px short side). It may look soft once printed.`
-    );
+    warnings.push({
+      type: "low_res",
+      message: `This photo is lower resolution than ideal (${shortSide}px short side). It may look soft once printed.`,
+    });
   }
   if (avgLuminance255 < PHOTO_UPLOAD.minAverageLuminance) {
-    warnings.push("This photo looks quite dark. Lithophanes work best with good contrast and lighter tones.");
+    warnings.push({
+      type: "dark",
+      message: "This photo looks quite dark. Lithophanes work best with good contrast and lighter tones.",
+    });
   }
   return warnings;
 }
