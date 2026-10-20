@@ -328,7 +328,7 @@ export default function CreateClient({ pricing }: Props) {
       )}
 
       {step === "addedToCart" && (
-        <div className="flex flex-col items-center gap-4 py-16 text-center">
+        <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
           <span className="text-4xl">🛒</span>
           <h1 className="text-xl font-bold text-ember">Added to cart</h1>
           <p className="text-sm text-foreground/70">
