@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { ORDER_STATUSES, OrderStatus } from "@/lib/config";
+import { ORDER_STATUSES, OrderStatus, QUOTE_NEGOTIATION_STATUSES } from "@/lib/config";
 import { fillTemplate } from "@/lib/whatsapp-templates";
 
 interface Props {
@@ -12,6 +12,8 @@ interface Props {
   initialNotes: string;
   initialQuoteAmount: string;
   neededBy: string;
+  /** True for photo_lamp/catalog_product orders -- price already shown & agreed to at checkout. */
+  isPrePriced: boolean;
 }
 
 export default function OrderAdminPanel({
@@ -21,9 +23,15 @@ export default function OrderAdminPanel({
   initialNotes,
   initialQuoteAmount,
   neededBy,
+  isPrePriced,
 }: Props) {
   const router = useRouter();
   const [status, setStatus] = useState<OrderStatus>(initialStatus);
+  // Hide the quote-negotiation steps for pre-priced orders, but always keep whatever
+  // status the order is already in selectable (e.g. legacy data, or a manual override).
+  const statusOptions = ORDER_STATUSES.filter(
+    (s) => !isPrePriced || !QUOTE_NEGOTIATION_STATUSES.includes(s) || s === initialStatus
+  );
   const [notes, setNotes] = useState(initialNotes);
   const [quoteAmount, setQuoteAmount] = useState(initialQuoteAmount);
   const [statusNote, setStatusNote] = useState("");
@@ -68,7 +76,7 @@ export default function OrderAdminPanel({
       <div>
         <label className="mb-1 block text-sm font-medium">Status</label>
         <select value={status} onChange={(e) => setStatus(e.target.value as OrderStatus)} className={inputClass}>
-          {ORDER_STATUSES.map((s) => (
+          {statusOptions.map((s) => (
             <option key={s} value={s}>
               {s}
             </option>

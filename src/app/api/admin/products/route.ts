@@ -20,7 +20,7 @@ export async function POST(request: Request) {
   const name = String(form.get("name") ?? "").trim();
   const description = String(form.get("description") ?? "").trim();
   const priceRaw = Number(form.get("price"));
-  const image = form.get("image");
+  const images = form.getAll("images").filter((f): f is File => f instanceof File && f.size > 0);
 
   if (!name) return NextResponse.json({ error: "Name is required" }, { status: 400 });
   if (!Number.isFinite(priceRaw) || priceRaw <= 0) {
@@ -28,16 +28,17 @@ export async function POST(request: Request) {
   }
 
   const admin = supabaseAdmin();
-  let imagePath: string | null = null;
+  const imagePaths: string[] = [];
 
-  if (image instanceof File && image.size > 0) {
+  for (const image of images) {
     const buffer = Buffer.from(await image.arrayBuffer());
     const ext = image.name.toLowerCase().slice(image.name.lastIndexOf("."));
-    imagePath = `products/${crypto.randomUUID()}${ext}`;
-    const { error: uploadError } = await admin.storage.from(CATALOG_IMAGES_BUCKET).upload(imagePath, buffer, {
+    const path = `products/${crypto.randomUUID()}${ext}`;
+    const { error: uploadError } = await admin.storage.from(CATALOG_IMAGES_BUCKET).upload(path, buffer, {
       contentType: image.type || "image/jpeg",
     });
     if (uploadError) return NextResponse.json({ error: uploadError.message }, { status: 500 });
+    imagePaths.push(path);
   }
 
   const slug = `${slugify(name)}-${Math.random().toString(36).slice(2, 7)}`;
@@ -47,7 +48,7 @@ export async function POST(request: Request) {
     name,
     description: description || null,
     price: priceRaw,
-    image_path: imagePath,
+    image_paths: imagePaths,
   });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

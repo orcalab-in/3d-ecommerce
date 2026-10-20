@@ -10,14 +10,14 @@ interface ProductRow {
   slug: string;
   name: string;
   price: number;
-  image_path: string | null;
+  image_paths: string[];
 }
 
 export default async function ShopPage() {
   const admin = supabaseAdmin();
   const { data } = await admin
     .from("products")
-    .select("slug, name, price, image_path")
+    .select("slug, name, price, image_paths")
     .eq("active", true)
     .order("name");
   const products = (data ?? []) as ProductRow[];
@@ -37,8 +37,8 @@ export default async function ShopPage() {
       ) : (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
           {products.map((p) => {
-            const imageUrl = p.image_path
-              ? admin.storage.from(CATALOG_IMAGES_BUCKET).getPublicUrl(p.image_path).data.publicUrl
+            const imageUrl = p.image_paths?.[0]
+              ? admin.storage.from(CATALOG_IMAGES_BUCKET).getPublicUrl(p.image_paths[0]).data.publicUrl
               : null;
             return (
               <Link

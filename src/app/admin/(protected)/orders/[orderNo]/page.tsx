@@ -163,6 +163,7 @@ export default async function OrderDetailPage({
         initialNotes={order.notes ?? ""}
         initialQuoteAmount={order.quote_amount != null ? String(order.quote_amount) : ""}
         neededBy={order.needed_by ?? ""}
+        isPrePriced={orderItems.every((item) => item.type !== "stl_upload")}
       />
     </div>
   );

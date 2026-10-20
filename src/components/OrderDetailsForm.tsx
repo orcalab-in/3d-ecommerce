@@ -11,6 +11,8 @@ interface Props {
   error: string | null;
   /** Defaults to the photo-rights wording; override for flows with no photo involved (e.g. the catalog). */
   consentLabel?: string;
+  /** Pre-fills the form, e.g. from a logged-in customer's saved profile. */
+  initial?: Partial<OrderDetailsInput>;
 }
 
 export default function OrderDetailsForm({
@@ -20,14 +22,14 @@ export default function OrderDetailsForm({
   onSubmit,
   error,
   consentLabel = "I own or have the right to use this photo.",
+  initial,
 }: Props) {
   const [details, setDetails] = useState<OrderDetailsInput>({
-    name: "",
-    whatsapp: "",
-    address: "",
-    pincode: "",
+    name: initial?.name ?? "",
+    whatsapp: initial?.whatsapp ?? "",
+    address: initial?.address ?? "",
+    pincode: initial?.pincode ?? "",
     notes: "",
-    neededBy: "",
     consent: false,
   });
   const [localErrors, setLocalErrors] = useState<string[]>([]);
@@ -83,26 +85,15 @@ export default function OrderDetailsForm({
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="mb-1 block text-sm font-medium">Pincode</label>
-          <input
-            className={inputClass}
-            value={details.pincode}
-            onChange={(e) => set("pincode", e.target.value.replace(/\D/g, "").slice(0, 6))}
-            inputMode="numeric"
-            required
-          />
-        </div>
-        <div>
-          <label className="mb-1 block text-sm font-medium">Needed by</label>
-          <input
-            type="date"
-            className={inputClass}
-            value={details.neededBy}
-            onChange={(e) => set("neededBy", e.target.value)}
-          />
-        </div>
+      <div>
+        <label className="mb-1 block text-sm font-medium">Pincode</label>
+        <input
+          className={inputClass}
+          value={details.pincode}
+          onChange={(e) => set("pincode", e.target.value.replace(/\D/g, "").slice(0, 6))}
+          inputMode="numeric"
+          required
+        />
       </div>
 
       <div>

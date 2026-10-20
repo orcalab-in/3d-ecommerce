@@ -1,22 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import LithophanePreview, { PreviewMode } from "@/components/LithophanePreview";
-import OrderDetailsForm from "@/components/OrderDetailsForm";
+import { useCart } from "@/contexts/CartContext";
 import { BASE_OPTIONS, BaseOptionId, SIZE_OPTIONS, SizeOptionId } from "@/lib/config";
 import { buildPreviewPanel, PreviewPanel } from "@/lib/client-lithophane";
 import { AdjustState, averageLuminance, CropState, DEFAULT_ADJUST, DEFAULT_CROP } from "@/lib/imaging";
 import { computeLampPrice } from "@/lib/pricing";
-import type { OrderDetailsInput } from "@/lib/validate-order";
 import { checkPhotoQuality, validatePhotoFile } from "@/lib/validate-photo";
 
-type Step = "upload" | "adjust" | "details" | "done";
+type Step = "upload" | "adjust" | "addedToCart";
 
 interface Props {
   pricing: Record<SizeOptionId, Record<BaseOptionId, number>>;
-  diwaliCutoffDate: string | null;
-  diwaliCutoffMessage: string | null;
 }
 
 function loadImageFile(file: File): Promise<HTMLImageElement> {
@@ -29,7 +26,8 @@ function loadImageFile(file: File): Promise<HTMLImageElement> {
   });
 }
 
-export default function CreateClient({ pricing, diwaliCutoffDate, diwaliCutoffMessage }: Props) {
+export default function CreateClient({ pricing }: Props) {
+  const { addItem } = useCart();
   const [step, setStep] = useState<Step>("upload");
   const [file, setFile] = useState<File | null>(null);
   const [imgEl, setImgEl] = useState<HTMLImageElement | null>(null);
@@ -45,10 +43,6 @@ export default function CreateClient({ pricing, diwaliCutoffDate, diwaliCutoffMe
 
   const [baseOption, setBaseOption] = useState<BaseOptionId>("none");
   const [qty, setQty] = useState(1);
-
-  const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const [orderNo, setOrderNo] = useState<string | null>(null);
 
   const dragState = useRef<{ x: number; y: number } | null>(null);
 
@@ -122,41 +116,22 @@ export default function CreateClient({ pricing, diwaliCutoffDate, diwaliCutoffMe
     dragState.current = null;
   }
 
-  const submitOrder = useCallback(
-    async (details: OrderDetailsInput) => {
-      if (!file) return;
-      setSubmitting(true);
-      setSubmitError(null);
-      try {
-        const form = new FormData();
-        form.set("type", "photo_lamp");
-        form.set("file", file);
-        form.set("sizeId", sizeId);
-        form.set("baseOption", baseOption);
-        form.set("qty", String(qty));
-        form.set("crop", JSON.stringify(crop));
-        form.set("adjust", JSON.stringify(adjust));
-        form.set("name", details.name);
-        form.set("whatsapp", details.whatsapp);
-        form.set("address", details.address);
-        form.set("pincode", details.pincode);
-        form.set("notes", details.notes);
-        form.set("neededBy", details.neededBy);
-        form.set("consent", String(details.consent));
-
-        const res = await fetch("/api/orders", { method: "POST", body: form });
-        const json = await res.json();
-        if (!res.ok) throw new Error(json.error ?? "Something went wrong");
-        setOrderNo(json.orderNo);
-        setStep("done");
-      } catch (err) {
-        setSubmitError(err instanceof Error ? err.message : "Something went wrong");
-      } finally {
-        setSubmitting(false);
-      }
-    },
-    [file, sizeId, baseOption, qty, crop, adjust]
-  );
+  function addToCart() {
+    if (!file) return;
+    addItem({
+      id: crypto.randomUUID(),
+      type: "photo_lamp",
+      file,
+      previewThumbnail: preview?.panelCanvas.toDataURL() ?? "",
+      sizeId,
+      baseOption,
+      crop,
+      adjust,
+      unitPrice: computeLampPrice(pricing, sizeId, baseOption, 1),
+      qty,
+    });
+    setStep("addedToCart");
+  }
 
   return (
     <main className="mx-auto flex max-w-lg flex-1 flex-col px-4 py-8">
@@ -344,49 +319,29 @@ export default function CreateClient({ pricing, diwaliCutoffDate, diwaliCutoffMe
           </div>
 
           <button
-            onClick={() => setStep("details")}
+            onClick={addToCart}
             className="mt-2 w-full rounded-full bg-amber px-6 py-3 text-base font-semibold text-white shadow-md transition hover:bg-amber-dark"
           >
-            Continue to order details
+            Add to cart
           </button>
         </div>
       )}
 
-      {step === "details" && (
-        <div className="flex flex-col gap-5">
-          <h1 className="text-xl font-bold text-ember">Order details</h1>
-          <div className="rounded-xl bg-white/60 p-4 text-sm">
-            <div className="flex justify-between">
-              <span>Photo lamp — {SIZE_OPTIONS[sizeId].label}</span>
-              <span>x{qty}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-foreground/60">{BASE_OPTIONS[baseOption].label}</span>
-              <span className="font-semibold text-amber-dark">₹{computeLampPrice(pricing, sizeId, baseOption, qty)}</span>
-            </div>
-          </div>
-          {diwaliCutoffDate && (
-            <p className="rounded-lg bg-amber/10 px-3 py-2 text-xs text-amber-dark">🪔 {diwaliCutoffMessage}</p>
-          )}
-          <OrderDetailsForm
-            submitting={submitting}
-            submitLabel="Submit order request"
-            onSubmit={submitOrder}
-            error={submitError}
-          />
-        </div>
-      )}
-
-      {step === "done" && (
+      {step === "addedToCart" && (
         <div className="flex flex-col items-center gap-4 py-16 text-center">
-          <span className="text-4xl">🎉</span>
-          <h1 className="text-xl font-bold text-ember">Order received — {orderNo}</h1>
+          <span className="text-4xl">🛒</span>
+          <h1 className="text-xl font-bold text-ember">Added to cart</h1>
           <p className="text-sm text-foreground/70">
-            We&apos;ll review your photo and confirm the final price with you on WhatsApp shortly.
+            {SIZE_OPTIONS[sizeId].label} photo lamp, {BASE_OPTIONS[baseOption].label.toLowerCase()} — x{qty}
           </p>
-          <Link href="/" className="mt-2 rounded-full bg-amber px-6 py-2.5 text-sm font-semibold text-white">
-            Back to home
-          </Link>
+          <div className="mt-2 flex gap-3">
+            <Link href="/cart" className="rounded-full bg-amber px-6 py-2.5 text-sm font-semibold text-white">
+              View cart
+            </Link>
+            <Link href="/" className="rounded-full border border-amber/40 px-6 py-2.5 text-sm text-amber-dark">
+              Keep shopping
+            </Link>
+          </div>
         </div>
       )}
     </main>

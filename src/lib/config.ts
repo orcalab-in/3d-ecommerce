@@ -97,5 +97,13 @@ export type OrderStatus = (typeof ORDER_STATUSES)[number];
 /** A logged-in customer can self-cancel their own order only while it's in one of these statuses. */
 export const SELF_CANCEL_ALLOWED_STATUSES: OrderStatus[] = ["Received", "Quote sent"];
 
+/**
+ * "Quote sent"/"Quote confirmed" only make sense for orders where the price wasn't
+ * known upfront (stl_upload, quoted manually). photo_lamp and catalog_product orders
+ * show and agree to a price before submitting, so these statuses are hidden from the
+ * admin dropdown for those order types -- see OrderAdminPanel.
+ */
+export const QUOTE_NEGOTIATION_STATUSES: OrderStatus[] = ["Quote sent", "Quote confirmed"];
+
 export const STORAGE_BUCKET = "lithophane-files";
 export const CATALOG_IMAGES_BUCKET = "catalog-images";

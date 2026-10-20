@@ -4,7 +4,6 @@ export interface OrderDetailsInput {
   address: string;
   pincode: string;
   notes: string;
-  neededBy: string; // yyyy-mm-dd or ""
   consent: boolean;
 }
 

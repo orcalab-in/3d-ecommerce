@@ -9,15 +9,16 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
   const admin = supabaseAdmin();
   const { data: product } = await admin
     .from("products")
-    .select("id, name, description, price, image_path")
+    .select("id, name, description, price, image_paths, active")
     .eq("id", id)
     .single();
 
   if (!product) notFound();
 
-  const imageUrl = product.image_path
-    ? admin.storage.from(CATALOG_IMAGES_BUCKET).getPublicUrl(product.image_path).data.publicUrl
-    : null;
+  const existingImages = ((product.image_paths as string[]) ?? []).map((path) => ({
+    path,
+    url: admin.storage.from(CATALOG_IMAGES_BUCKET).getPublicUrl(path).data.publicUrl,
+  }));
 
   return (
     <div className="mx-auto max-w-lg">
@@ -25,15 +26,13 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
         ← All products
       </Link>
       <h1 className="mb-4 text-xl font-bold text-ember">Edit product</h1>
-      {imageUrl && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={imageUrl} alt={product.name} className="mb-4 h-32 w-32 rounded-lg object-cover" />
-      )}
       <EditProductForm
         id={product.id}
         initialName={product.name}
         initialDescription={product.description ?? ""}
         initialPrice={String(product.price)}
+        initialActive={product.active}
+        existingImages={existingImages}
       />
     </div>
   );

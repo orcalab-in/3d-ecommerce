@@ -9,7 +9,7 @@ interface ProductRow {
   slug: string;
   name: string;
   price: number;
-  image_path: string | null;
+  image_paths: string[];
   active: boolean;
 }
 
@@ -17,7 +17,7 @@ export default async function AdminProductsPage() {
   const admin = supabaseAdmin();
   const { data } = await admin
     .from("products")
-    .select("id, slug, name, price, image_path, active")
+    .select("id, slug, name, price, image_paths, active")
     .order("name");
   const products = (data ?? []) as ProductRow[];
 
@@ -29,8 +29,8 @@ export default async function AdminProductsPage() {
 
       <div className="flex flex-col gap-2">
         {products.map((p) => {
-          const imageUrl = p.image_path
-            ? admin.storage.from(CATALOG_IMAGES_BUCKET).getPublicUrl(p.image_path).data.publicUrl
+          const imageUrl = p.image_paths?.[0]
+            ? admin.storage.from(CATALOG_IMAGES_BUCKET).getPublicUrl(p.image_paths[0]).data.publicUrl
             : null;
           return (
             <div key={p.id} className="flex items-center justify-between gap-3 rounded-xl bg-white p-3 shadow-sm">

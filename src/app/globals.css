@@ -23,3 +23,8 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }
+
+/* Tailwind's preflight resets <button> cursor to "default" -- restore the pointer. */
+button:not(:disabled) {
+  cursor: pointer;
+}
